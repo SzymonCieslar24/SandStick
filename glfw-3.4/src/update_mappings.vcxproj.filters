@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\ciesl\OneDrive\Pulpit\SandStick\glfw-3.4\CMakeFiles\3437e45899f14a83f52f3f6f7a3412e4\update_mappings.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\ciesl\OneDrive\Pulpit\SandStick\glfw-3.4\src\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Users\ciesl\OneDrive\Pulpit\SandStick\glfw-3.4\src\mappings.h.in">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="C:\Users\ciesl\OneDrive\Pulpit\SandStick\glfw-3.4\CMake\GenerateMappings.cmake" />
+    <None Include="C:\Users\ciesl\OneDrive\Pulpit\SandStick\glfw-3.4\src\CMakeFiles\update_mappings" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{0FF87D6E-93E1-3550-998A-58794BA1F54B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{F1FC2EBE-080A-3025-8B25-70FB293C88D1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\ciesl\OneDrive\Pulpit\SandStick\glm-master\CMakeFiles\4550777e9d6933db59fb3d6bfdc27d32\uninstall.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\ciesl\OneDrive\Pulpit\SandStick\glm-master\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Users\ciesl\OneDrive\Pulpit\SandStick\glm-master\CMakeFiles\uninstall" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{90DF8D5A-7B56-3702-9FC5-104B64511C40}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
