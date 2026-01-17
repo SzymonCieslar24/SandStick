@@ -17,10 +17,6 @@ void SandMesh::deform(glm::vec3 hitPoint, float radius, float strength)
 {
     bool changed = false;
 
-    // Przeliczamy pozycjê œwiata na indeksy siatki
-    // Zak³adamy, ¿e siatka zaczyna siê w (0,0) lub jest wycentrowana.
-    // Tutaj zak³adam start od (0,0,0) w górê X i Z.
-
     for (int z = 0; z < depth; ++z) {
         for (int x = 0; x < width; ++x) {
             int idx = z * width + x;
@@ -33,7 +29,7 @@ void SandMesh::deform(glm::vec3 hitPoint, float radius, float strength)
                 vertices[idx].Position.y += factor * strength;
 
                 // Ograniczenie, ¿eby piasek nie wyszed³ za bardzo
-                if (vertices[idx].Position.y < -2.0f) vertices[idx].Position.y = -2.0f;
+                if (vertices[idx].Position.y < -5.0f) vertices[idx].Position.y = -5.0f;
                 if (vertices[idx].Position.y > 5.0f) vertices[idx].Position.y = 5.0f;
 
                 changed = true;
@@ -41,10 +37,66 @@ void SandMesh::deform(glm::vec3 hitPoint, float radius, float strength)
         }
     }
 
-    if (changed) {
-        recalculateNormals();
-        updateBuffers();
+    //if (changed) {
+    //    recalculateNormals();
+    //    updateBuffers();
+    //}
+}
+
+void SandMesh::updateGeometry() {
+    recalculateNormals();
+    updateBuffers();
+}
+
+float SandMesh::getHeight(float x, float z) {
+    // Przeliczamy wspó³rzêdne œwiata na indeksy siatki
+    int ix = (int)(x / spacing);
+    int iz = (int)(z / spacing);
+
+    // Sprawdzenie granic (czy cz¹steczka jest nad piaskownic¹?)
+    if (ix < 0 || ix >= width || iz < 0 || iz >= depth) {
+        return -100.0f; // Dziura bez dna poza piaskownic¹
     }
+
+    // Zwracamy aktualn¹ wysokoœæ w tym punkcie
+    return vertices[iz * width + ix].Position.y;
+}
+
+void SandMesh::reset() {
+    // 1. Zerowanie wszystkich wierzcho³ków
+    for (auto& v : vertices) {
+        v.Position.y = 0.0f;
+        v.Normal = glm::vec3(0.0f, 1.0f, 0.0f);
+    }
+
+    updateBuffers();
+}
+
+void SandMesh::generateIslandShape() {
+    float centerX = width * spacing / 2.0f;
+    float centerZ = depth * spacing / 2.0f;
+    float maxRadius = (width * spacing) / 2.0f;
+
+    for (auto& v : vertices) {
+        float dist = glm::distance(glm::vec2(v.Position.x, v.Position.z), glm::vec2(centerX, centerZ));
+
+        float normalizedDist = dist / maxRadius;
+
+        if (normalizedDist < 1.0f) {
+            // Obliczamy kszta³t kopu³y (od 1.0 na œrodku do 0.0 na brzegu)
+            float h = (cos(normalizedDist * 3.14159f) + 1.0f) * 0.5f;
+
+            // --- ZMIANA TUTAJ ---
+            // Wzór: h * (MaxWysokoœæ - Dno) + Dno
+            // h * (4.0 - (-5.0)) + (-5.0) => h * 9.0 - 5.0
+
+            v.Position.y = h * 9.0f - 5.0f;
+        }
+        else {
+            v.Position.y = -5.0f; // Dno morza
+        }
+    }
+    updateGeometry();
 }
 
 void SandMesh::generateMesh()

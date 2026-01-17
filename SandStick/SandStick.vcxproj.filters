@@ -28,12 +28,24 @@
   <ItemGroup>
     <None Include="sand.vert" />
     <None Include="sand.frag" />
+    <None Include="particle.vert" />
+    <None Include="particle.frag" />
+    <None Include="water.vert" />
+    <None Include="water.frag" />
+    <None Include="ui.vert" />
+    <None Include="ui.frag" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SandMesh.h">
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
     <ClInclude Include="Shader.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="ParticleSystem.h">
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
   </ItemGroup>
