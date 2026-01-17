@@ -138,6 +138,8 @@
     <None Include="particle.vert" />
     <None Include="sand.frag" />
     <None Include="sand.vert" />
+    <None Include="sun.frag" />
+    <None Include="sun.vert" />
     <None Include="ui.frag" />
     <None Include="ui.vert" />
     <None Include="water.frag" />
@@ -148,6 +150,7 @@
     <ClInclude Include="ParticleSystem.h" />
     <ClInclude Include="SandMesh.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="Sun.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

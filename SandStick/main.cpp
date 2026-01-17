@@ -10,6 +10,7 @@
 #include "SandMesh.h"
 #include "Mesh.h"
 #include "ParticleSystem.h"
+#include "Sun.h"
 
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
@@ -28,6 +29,14 @@ double lastY = SCR_HEIGHT / 2.0f;
 float yaw = -90.0f;
 float pitch = 0.0f;
 const float sensitivity = 0.1f;
+
+glm::vec3 COLOR_DAY_SKY = glm::vec3(0.5f, 0.7f, 0.9f);
+glm::vec3 COLOR_SUNSET_SKY = glm::vec3(0.8f, 0.4f, 0.2f);
+glm::vec3 COLOR_NIGHT_SKY = glm::vec3(0.05f, 0.05f, 0.1f);
+
+glm::vec3 COLOR_DAY_LIGHT = glm::vec3(1.0f, 1.0f, 0.9f);
+glm::vec3 COLOR_SUNSET_LIGHT = glm::vec3(1.0f, 0.6f, 0.3f);
+glm::vec3 COLOR_NIGHT_LIGHT = glm::vec3(0.1f, 0.1f, 0.2f);
 
 // Raycasting - funkcja pomocnicza
 glm::vec3 getRayFromMouse(double mouseX, double mouseY, int screenW, int screenH, glm::mat4 view, glm::mat4 projection) {
@@ -134,6 +143,40 @@ void setupCrosshair() {
     glBindVertexArray(0);
 }
 
+void calculateEnvironment(float time, glm::vec3& sunPos, glm::vec3& skyColor, glm::vec3& lightColor) {
+    // 1. Ruch s³oñca (Wolniejszy: 0.05f)
+    float angle = time * 0.05f;
+    float radius = 200.0f;
+
+    sunPos.x = 128.0f + cos(angle) * radius;
+    sunPos.y = sin(angle) * radius;
+    sunPos.z = 128.0f;
+
+    float sunHeight = sin(angle);
+
+    float dayFactor = glm::smoothstep(0.0f, 0.4f, sunHeight);
+
+    float sunsetFactor = 1.0f - abs(glm::smoothstep(-0.4f, 0.4f, sunHeight) * 2.0f - 1.0f);
+
+    sunsetFactor = 1.0f - glm::smoothstep(0.0f, 0.3f, abs(sunHeight));
+
+    float nightFactor = glm::smoothstep(0.0f, -0.4f, sunHeight);
+
+    if (sunHeight > 0.0f) {
+        // --- PRZEJŒCIE DZIEÑ <-> ZACHÓD ---
+        float t = glm::smoothstep(0.0f, 0.5f, sunHeight);
+
+        skyColor = mix(COLOR_SUNSET_SKY, COLOR_DAY_SKY, t);
+        lightColor = mix(COLOR_SUNSET_LIGHT, COLOR_DAY_LIGHT, t);
+    }
+    else {
+        float t = glm::smoothstep(0.0f, 0.4f, abs(sunHeight));
+
+        skyColor = mix(COLOR_SUNSET_SKY, COLOR_NIGHT_SKY, t);
+        lightColor = mix(COLOR_SUNSET_LIGHT, COLOR_NIGHT_LIGHT, t);
+    }
+}
+
 int main()
 {
     glfwInit();
@@ -147,6 +190,8 @@ int main()
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) { return -1; }
     glEnable(GL_DEPTH_TEST);
+
+    Sun sunObject;
 
     Shader sandShader("sand.vert", "sand.frag");
     SandMesh sandBox(512, 512, 0.5f);
@@ -165,6 +210,8 @@ int main()
 
     Shader uiShader("ui.vert", "ui.frag");
     setupCrosshair();
+
+    Shader sunShader("sun.vert", "sun.frag");
 
     glEnable(GL_PROGRAM_POINT_SIZE);
 
@@ -268,7 +315,7 @@ int main()
         front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
         cameraFront = glm::normalize(front);
 
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 400.0f);
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
         glm::vec3 rayDir = getRayFromMouse(SCR_WIDTH / 2.0, SCR_HEIGHT / 2.0, SCR_WIDTH, SCR_HEIGHT, view, projection);
@@ -300,12 +347,23 @@ int main()
         glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        glm::vec3 sunPos, skyColor, lightColor;
+        calculateEnvironment(glfwGetTime(), sunPos, skyColor, lightColor);
+
+        glClearColor(skyColor.r, skyColor.g, skyColor.b, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
         sandShader.use();
+        sandShader.setVec3("fogColor", skyColor);   // Mg³a = kolor nieba
+        sandShader.setVec3("lightColor", lightColor);
         sandShader.setMat4("projection", projection);
         sandShader.setMat4("view", view);
 
         sandShader.setVec3("viewPos", cameraPos);
         sandShader.setVec3("dirLightDir", -0.2f, -1.0f, -0.3f);
+
+        glm::vec3 lightDir = glm::normalize(glm::vec3(128.0f, 0.0f, 128.0f) - sunPos);
+        sandShader.setVec3("dirLightDir", lightDir);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texSandDry);
@@ -339,18 +397,26 @@ int main()
         particleShader.use();
         particleShader.setMat4("projection", projection);
         particleShader.setMat4("view", view);
+        particleShader.setVec3("lightColor", lightColor);
         sandParticles.Draw(particleShader);
 
         waterShader.use();
+        waterShader.setVec3("fogColor", skyColor);
         waterShader.setMat4("projection", projection);
         waterShader.setMat4("view", view);
         waterShader.setFloat("time", glfwGetTime());
+
+        waterShader.setVec3("viewPos", cameraPos);     // Dla mg³y
+        waterShader.setVec3("fogColor", skyColor);     // Kolor nieba (z funkcji calculateEnvironment)
+        waterShader.setVec3("lightColor", lightColor);
 
         glm::mat4 modelWater = glm::mat4(1.0f);
         modelWater = glm::translate(modelWater, waterPos);
         waterShader.setMat4("model", modelWater);
 
         waterMesh.draw();
+
+        sunObject.Draw(sunShader, sunPos, view, projection);
 
         glDisable(GL_DEPTH_TEST);
 
