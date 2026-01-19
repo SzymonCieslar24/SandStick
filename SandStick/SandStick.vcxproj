@@ -130,10 +130,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\glad\src\glad.c" />
+    <ClCompile Include="GridMesh.cpp" />
+    <ClCompile Include="HobbyHorseMesh.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="ParticleSystem.cpp" />
     <ClCompile Include="SandMesh.cpp" />
+    <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="Sun.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="hobbyhorse.frag" />
+    <None Include="hobbyhorse.vert" />
     <None Include="particle.frag" />
     <None Include="particle.vert" />
     <None Include="sand.frag" />
@@ -146,7 +153,8 @@
     <None Include="water.vert" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Mesh.h" />
+    <ClInclude Include="GridMesh.h" />
+    <ClInclude Include="HobbyHorseMesh.h" />
     <ClInclude Include="ParticleSystem.h" />
     <ClInclude Include="SandMesh.h" />
     <ClInclude Include="Shader.h" />

@@ -7,9 +7,8 @@ in vec2 TexCoords;
 
 uniform vec3 viewPos;
 
-// Tekstury Piasku
-uniform sampler2D texSlot1; // Suchy piasek
-uniform sampler2D texSlot2; // Mokry piasek
+// Tekstura Patyka/Konia
+uniform sampler2D texSlot1; // G³ówna tekstura (drewno/patyk)
 
 // Œwiat³a
 struct PointLight {
@@ -30,33 +29,20 @@ void main()
     float shininess;      
     float specularStrength; 
 
-    // --- 1. MATERIA£ PIASEK ---
+    // --- 1. MATERIA£ PATYK ---
+    // U¿ywamy oryginalnych UV (bez mno¿enia * 8.0)
+    baseColor = texture(texSlot1, TexCoords).rgb;
     
-    // Tiling (zagêszczanie tekstury)
-    vec2 tiledCoords = TexCoords * 8.0; 
-    
-    vec3 dryColor = texture(texSlot1, tiledCoords).rgb;
-    vec3 wetColor = texture(texSlot2, tiledCoords).rgb;
-
-    // Mieszanie na podstawie wysokoœci
-    // -2.5 (mokro) do 1.5 (sucho)
-    float h = smoothstep(-2.5, 1.5, FragPos.y);
-    
-    baseColor = mix(wetColor, dryColor, h);
-
-    // Fizyka odblasków piasku:
-    // Mokry (h=0) -> b³yszczy (0.5), Suchy (h=1) -> matowy (0.0)
-    specularStrength = mix(0.5, 0.0, h); 
-    
-    // Mokry -> ostry b³ysk (32.0), Suchy -> rozlany (2.0)
-    shininess = mix(32.0, 2.0, h);
+    // Sta³e w³aœciwoœci drewna
+    specularStrength = 0.1; // Lekki po³ysk
+    shininess = 16.0;
 
     // --- 2. OŒWIETLENIE (PHONG) ---
     vec3 norm = normalize(Normal);
     vec3 viewDir = normalize(viewPos - FragPos);
     vec3 result = vec3(0.0);
 
-    // A. Œwiat³o Kierunkowe (S³oñce)
+    // A. Œwiat³o Kierunkowe
     vec3 lightDir = normalize(-dirLightDir);
     
     vec3 ambient = (0.3 * lightColor + vec3(0.05)) * baseColor; 

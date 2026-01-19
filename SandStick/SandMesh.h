@@ -1,43 +1,17 @@
 #pragma once
-
-#include <vector>
+#include "GridMesh.h"
 #include <cmath>
-#include <glm.hpp>
-#include <glad/glad.h> // Upewnij siê, ¿e masz to lub GLEW
 
-struct Vertex {
-    glm::vec3 Position;
-    glm::vec3 Normal;
-};
-
-class SandMesh {
+class SandMesh : public GridMesh {
 public:
-    int width, depth;
-    float spacing;
-    std::vector<Vertex> vertices;
-    std::vector<unsigned int> indices;
-    unsigned int VAO, VBO, EBO;
-
-    SandMesh(int w, int d, float s);
-
-    void draw();
+    SandMesh(int w, int d, float s) : GridMesh(w, d, s) {}
 
     void deform(glm::vec3 hitPoint, float radius, float strength);
-
     float getHeight(float x, float z);
-
     void reset();
-
     void generateIslandShape();
-
     void updateGeometry();
 
 private:
-    void generateMesh();
-
     void recalculateNormals();
-
-    void setupBuffers();
-
-    void updateBuffers();
 };

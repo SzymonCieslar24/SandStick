@@ -7,8 +7,9 @@
 
 #include <iostream>
 #include "Shader.h"
+#include "GridMesh.h"
 #include "SandMesh.h"
-#include "Mesh.h"
+#include "HobbyHorseMesh.h"
 #include "ParticleSystem.h"
 #include "Sun.h"
 
@@ -17,12 +18,12 @@ const unsigned int SCR_HEIGHT = 720;
 
 unsigned int crosshairVAO, crosshairVBO;
 
-glm::vec3 cameraPos = glm::vec3(128.0f, 5.0f, 128.0f);  // Kamera na poziomie piasku
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);  // Kamera patrzy w stronê zbli¿on¹ do Z-ujemnej
+glm::vec3 cameraPos = glm::vec3(128.0f, 5.0f, 128.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
-float deltaTime = 0.0f;    // Czas miêdzy obecn¹ a ostatni¹ klatk¹
-float lastFrame = 0.0f; // Czas ostatniej klatki
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
 
 double lastX = SCR_WIDTH / 2.0f;
 double lastY = SCR_HEIGHT / 2.0f;
@@ -52,18 +53,41 @@ glm::vec3 getRayFromMouse(double mouseX, double mouseY, int screenW, int screenH
     return ray_wor;
 }
 
-bool getRayPlaneIntersection(glm::vec3 rayOrigin, glm::vec3 rayDir, float planeY, glm::vec3& intersection) {
-    if (abs(rayDir.y) < 1e-6) return false;
-    float t = (planeY - rayOrigin.y) / rayDir.y;
-    if (t < 0) return false;
-    intersection = rayOrigin + rayDir * t;
+// Funkcja szukaj¹ca faktycznego punktu przeciêcia z pofalowanym terenem
+bool getRayTerrainIntersection(glm::vec3 rayOrigin, glm::vec3 rayDir, SandMesh& sandBox, glm::vec3& outputHitPoint) {
 
-    // Upewnij siê, ¿e kamera nie wychodzi powy¿ej powierzchni piasku
-    if (intersection.y < 0.0f) {
-        intersection.y = 0.0f;  // Ustaw na wysokoœæ powierzchni
+    // Parametry symulacji
+    float stepSize = 0.1f;  // Krok co 10cm - im mniejszy, tym wiêksza precyzja, ale wolniej
+    float maxDist = 25.0f;  // Maksymalny zasiêg r¹k (nie sprawdzamy dalej)
+
+    glm::vec3 currentPoint = rayOrigin;
+    glm::vec3 step = rayDir * stepSize;
+
+    // Pêtla "id¹ca" wzd³u¿ promienia
+    for (float d = 0.0f; d < maxDist; d += stepSize) {
+
+        // 1. Przesuwamy punkt badawczy
+        currentPoint += step;
+
+        // 2. Pobieramy wysokoœæ terenu w tym punkcie X,Z
+        float terrainHeight = sandBox.getHeight(currentPoint.x, currentPoint.z);
+
+        // 3. Sprawdzamy: Czy promieñ wszed³ pod ziemiê?
+        // (Czyli czy Y promienia jest mniejsze ni¿ Y terenu)
+        if (currentPoint.y <= terrainHeight) {
+
+            // Trafiliœmy!
+            // Opcjonalnie: Ma³e uœciœlenie (Binary Search) dla super precyzji, 
+            // ale przy kroku 0.1f wystarczy cofn¹æ siê o po³owê kroku.
+            outputHitPoint = currentPoint;
+            return true;
+        }
+
+        // Zabezpieczenie: Jeœli zeszliœmy poni¿ej dna morza (-5.0), przerywamy
+        if (currentPoint.y < -10.0f) return false;
     }
 
-    return true;
+    return false; // Nie trafiliœmy w nic w zasiêgu maxDist
 }
 
 unsigned int loadBMP(const char* imagepath) {
@@ -119,14 +143,9 @@ unsigned int loadBMP(const char* imagepath) {
 }
 
 void setupCrosshair() {
-    // Wspó³rzêdne krzy¿yka (X, Y)
-    // Poniewa¿ ekrany s¹ szerokie (16:9), X musi byæ mniejszy ni¿ Y, ¿eby krzy¿yk by³ równy.
     float vertices[] = {
-        // Pozioma linia (-)
         -0.02f,  0.0f,
          0.02f,  0.0f,
-
-         // Pionowa linia (|)
           0.0f, -0.035f,
           0.0f,  0.035f
     };
@@ -144,7 +163,6 @@ void setupCrosshair() {
 }
 
 void calculateEnvironment(float time, glm::vec3& sunPos, glm::vec3& skyColor, glm::vec3& lightColor) {
-    // 1. Ruch s³oñca (Wolniejszy: 0.05f)
     float angle = time * 0.05f;
     float radius = 200.0f;
 
@@ -154,24 +172,13 @@ void calculateEnvironment(float time, glm::vec3& sunPos, glm::vec3& skyColor, gl
 
     float sunHeight = sin(angle);
 
-    float dayFactor = glm::smoothstep(0.0f, 0.4f, sunHeight);
-
-    float sunsetFactor = 1.0f - abs(glm::smoothstep(-0.4f, 0.4f, sunHeight) * 2.0f - 1.0f);
-
-    sunsetFactor = 1.0f - glm::smoothstep(0.0f, 0.3f, abs(sunHeight));
-
-    float nightFactor = glm::smoothstep(0.0f, -0.4f, sunHeight);
-
     if (sunHeight > 0.0f) {
-        // --- PRZEJŒCIE DZIEÑ <-> ZACHÓD ---
         float t = glm::smoothstep(0.0f, 0.5f, sunHeight);
-
         skyColor = mix(COLOR_SUNSET_SKY, COLOR_DAY_SKY, t);
         lightColor = mix(COLOR_SUNSET_LIGHT, COLOR_DAY_LIGHT, t);
     }
     else {
         float t = glm::smoothstep(0.0f, 0.4f, abs(sunHeight));
-
         skyColor = mix(COLOR_SUNSET_SKY, COLOR_NIGHT_SKY, t);
         lightColor = mix(COLOR_SUNSET_LIGHT, COLOR_NIGHT_LIGHT, t);
     }
@@ -193,13 +200,15 @@ int main()
 
     Sun sunObject;
 
+    // --- £ADOWANIE SHADERÓW ---
     Shader sandShader("sand.vert", "sand.frag");
+    Shader hobbyHorseShader("hobbyhorse.vert", "hobbyhorse.frag"); // NOWY SHADER DLA PATYKA
+
     SandMesh sandBox(512, 512, 0.5f);
     sandBox.generateIslandShape();
 
     Shader waterShader("water.vert", "water.frag");
-    SandMesh waterMesh(512, 512, 5.0f);
-
+    GridMesh waterMesh(512, 512, 5.0f);
     glm::vec3 waterPos(-1000.0f, -2.0f, -1000.0f);
 
     glEnable(GL_BLEND);
@@ -215,15 +224,19 @@ int main()
 
     glEnable(GL_PROGRAM_POINT_SIZE);
 
-    Mesh stickModel("Resources/HobbyHorse.obj");
+    HobbyHorseMesh stickModel("Resources/HobbyHorse.obj");
     unsigned int stickTexture = loadBMP("Resources/HorseTexture.bmp");
-    unsigned int texSandDry = loadBMP("Resources/test1.bmp");
-    unsigned int texSandWet = loadBMP("Resources/test2.bmp");
+    unsigned int texSandDry = loadBMP("Resources/DrySandTexture.bmp");
+    unsigned int texSandWet = loadBMP("Resources/WetSandTexture.bmp");
 
+    // Konfiguracja shadera piasku
     sandShader.use();
-    sandShader.setInt("meshTexture", 0);
-    sandShader.setInt("texSlot1", 0);
-    sandShader.setInt("texSlot2", 1);
+    sandShader.setInt("texSlot1", 0); // Suchy
+    sandShader.setInt("texSlot2", 1); // Mokry
+
+    // Konfiguracja shadera konia
+    hobbyHorseShader.use();
+    hobbyHorseShader.setInt("texSlot1", 0); // Tekstura konia
 
     glm::vec3 currentStickPos(0.0f);
 
@@ -241,47 +254,25 @@ int main()
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);
 
+        // --- OBS£UGA KAMERY ---
         float cameraSpeed = 10.0f * deltaTime;
-
         glm::vec3 flatFront = glm::vec3(cameraFront.x, 0.0f, cameraFront.z);
-        if (glm::length(flatFront) > 0.001f) {
-            flatFront = glm::normalize(flatFront);
-        }
-        else {
-            flatFront = glm::vec3(0.0f, 0.0f, -1.0f);
-        }
+        if (glm::length(flatFront) > 0.001f) flatFront = glm::normalize(flatFront);
+        else flatFront = glm::vec3(0.0f, 0.0f, -1.0f);
 
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            cameraPos += cameraSpeed * flatFront;
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) cameraPos += cameraSpeed * flatFront;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) cameraPos -= cameraSpeed * flatFront;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) cameraPos += cameraSpeed * cameraUp;
+        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) cameraPos -= cameraSpeed * cameraUp;
 
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-            cameraPos -= cameraSpeed * flatFront;
-
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-
-        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-            cameraPos += cameraSpeed * cameraUp;
-
-        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-            cameraPos -= cameraSpeed * cameraUp;
-
-        if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-            sandBox.reset();
-        }
+        if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) sandBox.reset();
 
         if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
             if (!vKeyPressed) {
                 wireframeMode = !wireframeMode;
-                if (wireframeMode) {
-                    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                }
-                else {
-                    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                }
+                glPolygonMode(GL_FRONT_AND_BACK, wireframeMode ? GL_LINE : GL_FILL);
                 vKeyPressed = true;
             }
         }
@@ -289,26 +280,20 @@ int main()
             vKeyPressed = false;
         }
 
+        // --- MYSZKA ---
         double xpos, ypos;
         glfwGetCursorPos(window, &xpos, &ypos);
-
         float xOffset = xpos - lastX;
-        float yOffset = lastY - ypos;  // Odwrócenie osi Y
+        float yOffset = lastY - ypos;
         lastX = xpos;
         lastY = ypos;
-
         xOffset *= sensitivity;
         yOffset *= sensitivity;
-
         yaw += xOffset;
         pitch += yOffset;
+        if (pitch > 89.0f) pitch = 89.0f;
+        if (pitch < -89.0f) pitch = -89.0f;
 
-        if (pitch > 89.0f)
-            pitch = 89.0f;
-        if (pitch < -89.0f)
-            pitch = -89.0f;
-
-        // Aktualizacja kierunku kamery
         glm::vec3 front;
         front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
         front.y = sin(glm::radians(pitch));
@@ -318,15 +303,14 @@ int main()
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 400.0f);
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
+        // --- INTERAKCJA ---
         glm::vec3 rayDir = getRayFromMouse(SCR_WIDTH / 2.0, SCR_HEIGHT / 2.0, SCR_WIDTH, SCR_HEIGHT, view, projection);
         glm::vec3 hitPoint;
-
-        bool hit = getRayPlaneIntersection(cameraPos, rayDir, 0.0f, hitPoint);
-
+        bool hit = getRayTerrainIntersection(cameraPos, rayDir, sandBox, hitPoint);
         bool isButtonPressed = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS ||
             glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS);
 
-        sandParticles.Update(deltaTime, sandBox);
+        sandParticles.update(deltaTime, sandBox);
         sandBox.updateGeometry();
 
         if (hit) {
@@ -334,113 +318,101 @@ int main()
 
             if (isButtonPressed) {
                 bool raise = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+
+                // RzeŸbimy dok³adnie w hitPoint
                 if (raise) {
-                    glm::vec3 spawnPos = currentStickPos + glm::vec3(0.0f, 5.0f, 0.0f);
-                    sandParticles.Spawn(spawnPos, 1);
+                    glm::vec3 spawnPos = currentStickPos + glm::vec3(0.0f, 4.0f, 0.0f);
+                    sandParticles.spawn(spawnPos, 2);
                 }
                 else {
-                    sandBox.deform(currentStickPos, 1.0f, -0.01f);
+                    sandBox.deform(currentStickPos, 1.0f, -0.05f);
                 }
             }
         }
 
-        glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+        // --- RENDEROWANIE ---
         glm::vec3 sunPos, skyColor, lightColor;
         calculateEnvironment(glfwGetTime(), sunPos, skyColor, lightColor);
 
         glClearColor(skyColor.r, skyColor.g, skyColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Oblicz kierunek œwiat³a (wspólny dla obu shaderów)
+        glm::vec3 lightDir = glm::normalize(glm::vec3(128.0f, 0.0f, 128.0f) - sunPos);
+
+        // 1. Rysowanie Piasku
         sandShader.use();
-        sandShader.setVec3("fogColor", skyColor);   // Mg³a = kolor nieba
+        sandShader.setVec3("fogColor", skyColor);
         sandShader.setVec3("lightColor", lightColor);
         sandShader.setMat4("projection", projection);
         sandShader.setMat4("view", view);
-
         sandShader.setVec3("viewPos", cameraPos);
-        sandShader.setVec3("dirLightDir", -0.2f, -1.0f, -0.3f);
-
-        glm::vec3 lightDir = glm::normalize(glm::vec3(128.0f, 0.0f, 128.0f) - sunPos);
         sandShader.setVec3("dirLightDir", lightDir);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texSandDry);
-
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, texSandWet);
-
-        sandShader.setInt("objectType", 0);
 
         glm::mat4 model = glm::mat4(1.0f);
         sandShader.setMat4("model", model);
         sandBox.draw();
 
+        // 2. Rysowanie Patyka (HobbyHorse)
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+            hobbyHorseShader.use(); // <--- PRZE£¥CZAMY PROGRAM
+
+            // Musimy ustawiæ uniformy oœwietlenia/kamery równie¿ tutaj!
+            hobbyHorseShader.setVec3("fogColor", skyColor);
+            hobbyHorseShader.setVec3("lightColor", lightColor);
+            hobbyHorseShader.setMat4("projection", projection);
+            hobbyHorseShader.setMat4("view", view);
+            hobbyHorseShader.setVec3("viewPos", cameraPos);
+            hobbyHorseShader.setVec3("dirLightDir", lightDir);
+
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, stickTexture);
-
-            sandShader.setInt("objectType", 1);
 
             model = glm::mat4(1.0f);
             model = glm::translate(model, currentStickPos);
             model = glm::rotate(model, glm::radians(-35.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-            //model = glm::rotate(model, glm::radians(15.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            //model = glm::translate(model, glm::vec3(0.0f, 2.0f, 0.0f));
             model = glm::scale(model, glm::vec3(2.5f));
 
-            sandShader.setMat4("model", model);
+            hobbyHorseShader.setMat4("model", model);
             stickModel.draw();
         }
 
+        // 3. Reszta (Cz¹steczki, Woda, S³oñce, UI)
         particleShader.use();
         particleShader.setMat4("projection", projection);
         particleShader.setMat4("view", view);
         particleShader.setVec3("lightColor", lightColor);
-        sandParticles.Draw(particleShader);
+        sandParticles.draw(particleShader);
 
         waterShader.use();
-        waterShader.setVec3("fogColor", skyColor);
         waterShader.setMat4("projection", projection);
         waterShader.setMat4("view", view);
         waterShader.setFloat("time", glfwGetTime());
-
-        waterShader.setVec3("viewPos", cameraPos);     // Dla mg³y
-        waterShader.setVec3("fogColor", skyColor);     // Kolor nieba (z funkcji calculateEnvironment)
+        waterShader.setVec3("viewPos", cameraPos);
+        waterShader.setVec3("fogColor", skyColor);
         waterShader.setVec3("lightColor", lightColor);
-
         glm::mat4 modelWater = glm::mat4(1.0f);
         modelWater = glm::translate(modelWater, waterPos);
         waterShader.setMat4("model", modelWater);
-
         waterMesh.draw();
 
-        sunObject.Draw(sunShader, sunPos, view, projection);
+        sunObject.draw(sunShader, sunPos, view, projection);
 
         glDisable(GL_DEPTH_TEST);
 
         uiShader.use();
-
-        // 2. Logika koloru (Informacja zwrotna dla gracza)
-        glm::vec3 crosshairColor;
-
-        if (hit) {
-            // Jeœli celujemy w piasek i jesteœmy blisko -> ZIELONY (Mo¿na kopaæ)
-            crosshairColor = glm::vec3(0.0f, 1.0f, 0.0f);
-        }
-        else {
-            // Jeœli celujemy w niebo lub za daleko -> BIA£Y (pó³przezroczysty wizualnie przez cienkie linie)
-            crosshairColor = glm::vec3(1.0f, 1.0f, 1.0f);
-        }
+        glm::vec3 crosshairColor = hit ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 1.0f, 1.0f);
         uiShader.setVec3("color", crosshairColor);
 
-        // 3. Rysowanie linii
         glBindVertexArray(crosshairVAO);
-        glDrawArrays(GL_LINES, 0, 4); // 4 punkty tworz¹ 2 linie
+        glDrawArrays(GL_LINES, 0, 4);
         glBindVertexArray(0);
 
-        // 4. Przywracamy test g³êbokoœci dla nastêpnej klatki (WA¯NE!)
         glEnable(GL_DEPTH_TEST);
 
         glfwSwapBuffers(window);
