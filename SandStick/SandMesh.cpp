@@ -69,32 +69,34 @@ void SandMesh::generateIslandShape() {
     updateGeometry();
 }
 
-void SandMesh::recalculateNormals() {
-    // Reset normalnych
-    for (auto& v : vertices) v.Normal = glm::vec3(0.0f);
+void SandMesh::recalculateNormals()
+{
+    // Metoda analityczna (a'la Sobel/Central Difference) dla Heightmapy
+    // Zamiast liczyæ trójk¹ty, sprawdzamy nachylenie miêdzy s¹siadami.
 
-    // Sumowanie normalnych œcian dla ka¿dego wierzcho³ka (smooth shading)
-    for (size_t i = 0; i < indices.size(); i += 3) {
-        unsigned int i1 = indices[i];
-        unsigned int i2 = indices[i + 1];
-        unsigned int i3 = indices[i + 2];
+    for (int z = 0; z < depth; ++z) {
+        for (int x = 0; x < width; ++x) {
 
-        glm::vec3 v1 = vertices[i1].Position;
-        glm::vec3 v2 = vertices[i2].Position;
-        glm::vec3 v3 = vertices[i3].Position;
+            // Pobieramy wysokoœci s¹siadów (z obs³ug¹ granic mapy)
+            // Jeœli jesteœmy na krawêdzi, bierzemy wysokoœæ aktualnego punktu (brak nachylenia na krawêdzi)
+            float hL = (x > 0) ? vertices[z * width + (x - 1)].Position.y : vertices[z * width + x].Position.y;
+            float hR = (x < width - 1) ? vertices[z * width + (x + 1)].Position.y : vertices[z * width + x].Position.y;
+            float hD = (z > 0) ? vertices[(z - 1) * width + x].Position.y : vertices[z * width + x].Position.y; // Down (Z-1)
+            float hU = (z < depth - 1) ? vertices[(z + 1) * width + x].Position.y : vertices[z * width + x].Position.y; // Up (Z+1)
 
-        // Iloczyn wektorowy krawêdzi
-        glm::vec3 edge1 = v2 - v1;
-        glm::vec3 edge2 = v3 - v1;
-        glm::vec3 normal = glm::cross(edge1, edge2);
+            // Obliczamy wektor normalny
+            // Normal.x = wysokoœæ lewego - wysokoœæ prawego
+            // Normal.z = wysokoœæ dolnego - wysokoœæ górnego
+            // Normal.y = 2.0f * odstep_miedzy_wierzcholkami (skalowanie pionowe)
 
-        vertices[i1].Normal += normal;
-        vertices[i2].Normal += normal;
-        vertices[i3].Normal += normal;
+            glm::vec3 normal;
+            normal.x = hL - hR;
+            normal.y = 2.0f * spacing; // Sta³a wp³ywaj¹ca na "ostroœæ" normalnych
+            normal.z = hD - hU;
+
+            vertices[z * width + x].Normal = glm::normalize(normal);
+        }
     }
-
-    // Normalizacja
-    for (auto& v : vertices) v.Normal = glm::normalize(v.Normal);
 }
 
 void SandMesh::updateGeometry() {

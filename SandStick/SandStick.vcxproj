@@ -119,17 +119,17 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ciesl\OneDrive\Pulpit\SandStick\glm-master\glm;C:\Users\ciesl\OneDrive\Pulpit\SandStick\glad\include;C:\Users\ciesl\OneDrive\Pulpit\SandStick\glfw-3.4\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\glm-master\glm;$(SolutionDir)\glad\include;$(SolutionDir)\glfw-3.4\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>glfw3.lib;opengl32.lib;user32.lib;gdi32.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Users\ciesl\OneDrive\Pulpit\SandStick\glfw-3.4\src\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\External\lib\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\glad\src\glad.c" />
+    <ClCompile Include="glad\src\glad.c" />
     <ClCompile Include="GridMesh.cpp" />
     <ClCompile Include="HobbyHorseMesh.cpp" />
     <ClCompile Include="main.cpp" />
