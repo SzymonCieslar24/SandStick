@@ -53,6 +53,13 @@
     <None Include="sun.frag" />
     <None Include="hobbyhorse.frag" />
     <None Include="hobbyhorse.vert" />
+    <None Include="blur.vert" />
+    <None Include="blur.frag" />
+    <None Include="final.frag" />
+    <None Include="extract.frag" />
+    <None Include="screen.vert" />
+    <None Include="sky.frag" />
+    <None Include="sky.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SandMesh.h">
@@ -71,6 +78,9 @@
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
     <ClInclude Include="HobbyHorseMesh.h">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+    <ClInclude Include="FrameBuffer.h">
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
   </ItemGroup>

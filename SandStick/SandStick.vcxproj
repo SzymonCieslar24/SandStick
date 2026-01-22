@@ -139,12 +139,19 @@
     <ClCompile Include="Sun.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="blur.frag" />
+    <None Include="blur.vert" />
+    <None Include="extract.frag" />
+    <None Include="final.frag" />
     <None Include="hobbyhorse.frag" />
     <None Include="hobbyhorse.vert" />
     <None Include="particle.frag" />
     <None Include="particle.vert" />
     <None Include="sand.frag" />
     <None Include="sand.vert" />
+    <None Include="screen.vert" />
+    <None Include="sky.frag" />
+    <None Include="sky.vert" />
     <None Include="sun.frag" />
     <None Include="sun.vert" />
     <None Include="ui.frag" />
@@ -153,6 +160,7 @@
     <None Include="water.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="FrameBuffer.h" />
     <ClInclude Include="GridMesh.h" />
     <ClInclude Include="HobbyHorseMesh.h" />
     <ClInclude Include="ParticleSystem.h" />

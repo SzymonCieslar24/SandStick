@@ -1,39 +1,54 @@
 #version 330 core
 out vec4 FragColor;
 
-in vec3 FragPos; // Pozycja fragmentu w œwiecie (z Vertex Shadera)
+in vec3 FragPos;
+in vec3 Normal;
 
-uniform vec3 viewPos;    // Pozycja kamery (do obliczania dystansu)
-uniform vec3 fogColor;   // Kolor nieba/mg³y (zmienny: dzieñ/noc/zachód)
-uniform vec3 lightColor; // Kolor œwiat³a (wp³ywa na odcieñ wody)
+uniform vec3 viewPos;
+uniform vec3 fogColor;
+uniform vec3 lightColor;
+uniform vec3 dirLightDir;
 
 void main()
 {
-    // 1. Bazowy kolor wody (niebieski, pó³przezroczysty)
-    vec4 baseWater = vec4(0.0, 0.4, 0.8, 0.6);
+    // 1. KOLOR BAZOWY
+    // Ustawiamy mocny niebieski
+    vec3 baseColor = vec3(0.0, 0.2, 0.8); 
 
-    // 2. Zastosowanie oœwietlenia
-    // Mno¿ymy kolor wody przez kolor œwiat³a. 
-    // Dziêki temu w nocy woda bêdzie ciemna (granatowa), a o zachodzie lekko brudna/pomarañczowa.
-    // Dodajemy "max", ¿eby woda nie by³a totalnie czarna (0.2 to minimalna jasnoœæ - œwiat³o ksiê¿yca/gwiazd)
-    vec3 ambientLight = max(lightColor, vec3(0.2)); 
-    vec3 litWaterColor = baseWater.rgb * ambientLight;
+    // 2. PRZYGOTOWANIE WEKTORÓW
+    vec3 norm = normalize(Normal);
+    vec3 viewDir = normalize(viewPos - FragPos);
+    vec3 lightDir = normalize(-dirLightDir); // Odwracamy, by celowa³ w s³oñce
 
-    // 3. Obliczanie Mg³y (Fog)
-    float dist = length(viewPos - FragPos);
-    float fogStart = 50.0;  // Mg³a zaczyna siê 50 jednostek od nas
-    float fogEnd = 300.0;   // Pe³na mg³a na horyzoncie (woda jest du¿a)
+    // 3. OŒWIETLENIE (Diffuse + Ambient)
+    // Ambient - ¿eby woda nigdy nie by³a czarna (minimum 0.4 jasnoœci)
+    vec3 ambient = lightColor * 0.1;
     
-    float fogFactor = clamp((dist - fogStart) / (fogEnd - fogStart), 0.0, 1.0);
+    // Diffuse - cieniowanie fal
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse = diff * lightColor * 0.6;
 
-    // 4. Mieszanie kolorów (Final Color)
-    // Mieszamy oœwietlon¹ wodê z kolorem nieba (fogColor)
-    vec3 finalRGB = mix(litWaterColor, fogColor, fogFactor);
+    // 4. ODBLASK (Specular - dla Blooma)
+    vec3 reflectDir = reflect(-lightDir, norm);
+    // Shininess 32.0 (œrednie skupienie)
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64.0);
+    // Mno¿nik x100.0 (wymuszenie HDR Bloom)
+    vec3 specular = spec * lightColor * 10.0; 
 
-    // 5. Mieszanie przezroczystoœci (Final Alpha)
-    // Blisko nas woda jest przezroczysta (0.6).
-    // Daleko (we mgle) staje siê nieprzezroczysta (1.0), ¿eby ukryæ krawêdŸ œwiata.
-    float finalAlpha = mix(baseWater.a, 1.0, fogFactor);
+    // 5. SK£ADANIE CA£OŒCI
+    // Najpierw kolor wody
+    vec3 result = (ambient + diffuse) * baseColor;
+    
+    // Potem mg³a (jeœli u¿ywasz) - opcjonalne, ale warto zostawiæ
+    float dist = length(viewPos - FragPos);
+    float fogFactor = clamp((dist - 50.0) / 250.0, 0.0, 1.0);
+    result = mix(result, fogColor, fogFactor);
 
-    FragColor = vec4(finalRGB, finalAlpha);
+    // NA KOÑCU: Dodajemy odblask (dodawanie addytywne)
+    // To sprawia, ¿e odblask jest "nadrukowany" na wodzie
+    result += specular;
+
+    // 6. WYJŒCIE
+    // Alpha = 1.0 (Brak przezroczystoœci - woda musi byæ widoczna)
+    FragColor = vec4(result, 1.0);
 }

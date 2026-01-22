@@ -15,8 +15,8 @@ void SandMesh::deform(glm::vec3 hitPoint, float radius, float strength) {
                 vertices[idx].Position.y += factor * strength;
 
                 // Ograniczenie, ¿eby piasek nie wyszed³ za bardzo
-                if (vertices[idx].Position.y < -5.0f) vertices[idx].Position.y = -5.0f;
-                if (vertices[idx].Position.y > 5.0f) vertices[idx].Position.y = 5.0f;
+                //if (vertices[idx].Position.y < -5.0f) vertices[idx].Position.y = -5.0f;
+                //if (vertices[idx].Position.y > 5.0f) vertices[idx].Position.y = 5.0f;
 
                 changed = true;
             }
