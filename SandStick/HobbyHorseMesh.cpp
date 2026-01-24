@@ -14,7 +14,7 @@ void HobbyHorseMesh::draw() {
 void HobbyHorseMesh::loadOBJ(const char* path) {
     std::vector<glm::vec3> temp_positions;
     std::vector<glm::vec3> temp_normals;
-    std::vector<glm::vec2> temp_uvs; // Bufor na UV
+    std::vector<glm::vec2> temp_uvs;
 
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -33,7 +33,7 @@ void HobbyHorseMesh::loadOBJ(const char* path) {
             ss >> pos.x >> pos.y >> pos.z;
             temp_positions.push_back(pos);
         }
-        else if (prefix == "vt") { // Parsowanie UV
+        else if (prefix == "vt") {
             glm::vec2 uv;
             ss >> uv.x >> uv.y;
             temp_uvs.push_back(uv);
@@ -49,13 +49,12 @@ void HobbyHorseMesh::loadOBJ(const char* path) {
                 MeshVertex v;
                 unsigned int vIdx = 0, vtIdx = 0, vnIdx = 0;
 
-                // Format: v/vt/vn
+
                 size_t firstSlash = vertexStr.find('/');
                 size_t secondSlash = vertexStr.find('/', firstSlash + 1);
 
                 vIdx = std::stoi(vertexStr.substr(0, firstSlash));
 
-                // Czytamy UV (pomiêdzy slashami)
                 if (firstSlash != std::string::npos && secondSlash != std::string::npos) {
                     std::string vtStr = vertexStr.substr(firstSlash + 1, secondSlash - firstSlash - 1);
                     if (!vtStr.empty()) vtIdx = std::stoi(vtStr);
@@ -65,7 +64,6 @@ void HobbyHorseMesh::loadOBJ(const char* path) {
                     vnIdx = std::stoi(vertexStr.substr(secondSlash + 1));
                 }
 
-                // Przypisanie danych (OBJ indeksuje od 1)
                 v.Position = temp_positions[vIdx - 1];
 
                 if (vtIdx > 0) v.TexCoords = temp_uvs[vtIdx - 1];
@@ -88,13 +86,12 @@ void HobbyHorseMesh::setupMesh() {
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(MeshVertex), vertices.data(), GL_STATIC_DRAW);
 
-    // 1. Position
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(MeshVertex), (void*)0);
-    // 2. Normal
+
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(MeshVertex), (void*)offsetof(MeshVertex, Normal));
-    // 3. TexCoords (Nowy atrybut na pozycji 2)
+
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(MeshVertex), (void*)offsetof(MeshVertex, TexCoords));
 

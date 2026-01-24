@@ -11,7 +11,7 @@
 class Shader
 {
 public:
-    unsigned int ID; // ID programu shaderowego
+    unsigned int ID;
 
     Shader(const char* vertexPath, const char* fragmentPath);
 

@@ -129,6 +129,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="FrameBuffer.cpp" />
     <ClCompile Include="glad\src\glad.c" />
     <ClCompile Include="GridMesh.cpp" />
     <ClCompile Include="HobbyHorseMesh.cpp" />

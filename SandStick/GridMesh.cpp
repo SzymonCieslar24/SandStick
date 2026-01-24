@@ -12,14 +12,12 @@ GridMesh::~GridMesh() {
 }
 
 void GridMesh::generateFlatGrid() {
-    // 1. Wierzcho³ki
     vertices.clear();
     for (int z = 0; z < depth; ++z) {
         for (int x = 0; x < width; ++x) {
             Vertex v;
             v.Position = glm::vec3(x * spacing, 0.0f, z * spacing);
             v.Normal = glm::vec3(0.0f, 1.0f, 0.0f);
-            // v.TexCoords = glm::vec2((float)x / width, (float)z / depth); // Opcjonalnie
             vertices.push_back(v);
         }
     }
@@ -57,10 +55,9 @@ void GridMesh::setupBuffers() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
-    // Pozycje
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-    // Normale
+
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
 

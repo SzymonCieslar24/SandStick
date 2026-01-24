@@ -14,8 +14,8 @@
 #include "Sun.h"
 #include "FrameBuffer.h"
 
-const unsigned int SCR_WIDTH = 1280;
-const unsigned int SCR_HEIGHT = 720;
+const unsigned int SCR_WIDTH = 1920;
+const unsigned int SCR_HEIGHT = 1080;
 
 unsigned int crosshairVAO, crosshairVBO;
 
@@ -32,33 +32,27 @@ float yaw = -90.0f;
 float pitch = 0.0f;
 const float sensitivity = 0.1f;
 
-// Dzieñ: G³êboki b³êkit u góry, jasny cyjan na dole
-glm::vec3 DAY_TOP = glm::vec3(0.0f, 0.3f, 0.8f);     // Królewski b³êkit
-glm::vec3 DAY_BOTTOM = glm::vec3(0.4f, 0.7f, 1.0f);  // Jasny b³êkit
+glm::vec3 DAY_TOP = glm::vec3(0.0f, 0.3f, 0.8f);
+glm::vec3 DAY_BOTTOM = glm::vec3(0.4f, 0.7f, 1.0f); 
 
-// Zachód: Fiolet u góry, P³omienna pomarañcz na dole
-glm::vec3 SUNSET_TOP = glm::vec3(0.2f, 0.0f, 0.4f);  // Ciemny fiolet
-glm::vec3 SUNSET_BOTTOM = glm::vec3(1.0f, 0.4f, 0.1f); // Ogieñ
+glm::vec3 SUNSET_TOP = glm::vec3(0.2f, 0.0f, 0.4f);
+glm::vec3 SUNSET_BOTTOM = glm::vec3(1.0f, 0.4f, 0.1f);
 
-// Noc: Czerñ u góry, Granat na dole
 glm::vec3 NIGHT_TOP = glm::vec3(0.02f, 0.08f, 0.30f);
 glm::vec3 NIGHT_BOTTOM = glm::vec3(0.10f, 0.20f, 0.45f);
 
-// Œwiat³o (dla piasku i wody)
-glm::vec3 COLOR_DAY_LIGHT = glm::vec3(1.3f, 1.3f, 1.1f); // Podkrêcona jasnoœæ (>1.0 dla HDR)
+glm::vec3 COLOR_DAY_LIGHT = glm::vec3(1.3f, 1.3f, 1.1f);
 glm::vec3 COLOR_SUNSET_LIGHT = glm::vec3(1.5f, 0.8f, 0.4f);
 glm::vec3 COLOR_NIGHT_LIGHT = glm::vec3(0.15f, 0.20f, 0.45f);
 
 unsigned int quadVAO = 0;
 unsigned int quadVBO;
 
-// --- FUNKCJA TWORZ¥CA EKRAN (Wklej przed main) ---
 void setupScreenQuad()
 {
     if (quadVAO == 0)
     {
         float quadVertices[] = {
-            // pozycje (X, Y)   // texCoords (U, V)
             -1.0f,  1.0f,       0.0f, 1.0f,
             -1.0f, -1.0f,       0.0f, 0.0f,
              1.0f, -1.0f,       1.0f, 0.0f,
@@ -68,31 +62,24 @@ void setupScreenQuad()
              1.0f,  1.0f,       1.0f, 1.0f
         };
 
-        // 1. Generowanie buforów
         glGenVertexArrays(1, &quadVAO);
         glGenBuffers(1, &quadVBO);
 
         glBindVertexArray(quadVAO);
 
-        // 2. Wys³anie danych wierzcho³ków
         glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
         glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
 
-        // 3. Konfiguracja atrybutów (Layout w shaderze)
-
-        // Pozycje (location = 0)
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
 
-        // Tekstury (location = 1)
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
-        glBindVertexArray(0); // Odpinamy
+        glBindVertexArray(0);
     }
 }
 
-// Raycasting - funkcja pomocnicza
 glm::vec3 getRayFromMouse(double mouseX, double mouseY, int screenW, int screenH, glm::mat4 view, glm::mat4 projection) {
     float x = (2.0f * mouseX) / screenW - 1.0f;
     float y = 1.0f - (2.0f * mouseY) / screenH;
@@ -106,41 +93,28 @@ glm::vec3 getRayFromMouse(double mouseX, double mouseY, int screenW, int screenH
     return ray_wor;
 }
 
-// Funkcja szukaj¹ca faktycznego punktu przeciêcia z pofalowanym terenem
 bool getRayTerrainIntersection(glm::vec3 rayOrigin, glm::vec3 rayDir, SandMesh& sandBox, glm::vec3& outputHitPoint) {
 
-    // Parametry symulacji
-    float stepSize = 0.1f;  // Krok co 10cm - im mniejszy, tym wiêksza precyzja, ale wolniej
-    float maxDist = 25.0f;  // Maksymalny zasiêg r¹k (nie sprawdzamy dalej)
+    float stepSize = 0.1f;
+    float maxDist = 25.0f;
 
     glm::vec3 currentPoint = rayOrigin;
     glm::vec3 step = rayDir * stepSize;
 
-    // Pêtla "id¹ca" wzd³u¿ promienia
     for (float d = 0.0f; d < maxDist; d += stepSize) {
 
-        // 1. Przesuwamy punkt badawczy
         currentPoint += step;
-
-        // 2. Pobieramy wysokoœæ terenu w tym punkcie X,Z
         float terrainHeight = sandBox.getHeight(currentPoint.x, currentPoint.z);
 
-        // 3. Sprawdzamy: Czy promieñ wszed³ pod ziemiê?
-        // (Czyli czy Y promienia jest mniejsze ni¿ Y terenu)
         if (currentPoint.y <= terrainHeight) {
-
-            // Trafiliœmy!
-            // Opcjonalnie: Ma³e uœciœlenie (Binary Search) dla super precyzji, 
-            // ale przy kroku 0.1f wystarczy cofn¹æ siê o po³owê kroku.
             outputHitPoint = currentPoint;
             return true;
         }
 
-        // Zabezpieczenie: Jeœli zeszliœmy poni¿ej dna morza (-5.0), przerywamy
         if (currentPoint.y < -10.0f) return false;
     }
 
-    return false; // Nie trafiliœmy w nic w zasiêgu maxDist
+    return false;
 }
 
 unsigned int loadBMP(const char* imagepath) {
@@ -240,9 +214,8 @@ int main()
 
     Sun sunObject;
 
-    // --- £ADOWANIE SHADERÓW ---
     Shader sandShader("sand.vert", "sand.frag");
-    Shader hobbyHorseShader("hobbyhorse.vert", "hobbyhorse.frag"); // NOWY SHADER DLA PATYKA
+    Shader hobbyHorseShader("hobbyhorse.vert", "hobbyhorse.frag");
 
     SandMesh sandBox(512, 512, 0.5f);
     sandBox.generateIslandShape();
@@ -269,14 +242,12 @@ int main()
     unsigned int texSandDry = loadBMP("Resources/DrySandTexture.bmp");
     unsigned int texSandWet = loadBMP("Resources/WetSandTexture.bmp");
 
-    // Konfiguracja shadera piasku
     sandShader.use();
-    sandShader.setInt("texSlot1", 0); // Suchy
-    sandShader.setInt("texSlot2", 1); // Mokry
+    sandShader.setInt("texSlot1", 0);
+    sandShader.setInt("texSlot2", 1);
 
-    // Konfiguracja shadera konia
     hobbyHorseShader.use();
-    hobbyHorseShader.setInt("texSlot1", 0); // Tekstura konia
+    hobbyHorseShader.setInt("texSlot1", 0);
 
     glm::vec3 currentStickPos(0.0f);
 
@@ -292,11 +263,9 @@ int main()
     Shader skyShader("sky.vert", "sky.frag");
     Sun skySphere;
 
-    // G³ówny Framebuffer HDR
     FrameBuffer sceneFBO(SCR_WIDTH, SCR_HEIGHT);
-    setupScreenQuad(); // Twoja funkcja tworz¹ca quad
+    setupScreenQuad(); 
 
-    // Bufory Ping-Pong HDR
     unsigned int pingpongFBO[2];
     unsigned int pingpongColorbuffers[2];
     glGenFramebuffers(2, pingpongFBO);
@@ -304,7 +273,6 @@ int main()
     for (unsigned int i = 0; i < 2; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
         glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[i]);
-        // WA¯NE: GL_RGB16F !!!
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -322,7 +290,6 @@ int main()
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);
 
-        // --- OBS£UGA KAMERY ---
         float cameraSpeed = 10.0f * deltaTime;
         glm::vec3 flatFront = glm::vec3(cameraFront.x, 0.0f, cameraFront.z);
         if (glm::length(flatFront) > 0.001f) flatFront = glm::normalize(flatFront);
@@ -340,7 +307,6 @@ int main()
         if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
             if (!vKeyPressed) {
                 wireframeMode = !wireframeMode;
-                //glPolygonMode(GL_FRONT_AND_BACK, wireframeMode ? GL_LINE : GL_FILL);
                 vKeyPressed = true;
             }
         }
@@ -348,7 +314,6 @@ int main()
             vKeyPressed = false;
         }
 
-        // --- MYSZKA ---
         double xpos, ypos;
         glfwGetCursorPos(window, &xpos, &ypos);
         float xOffset = xpos - lastX;
@@ -371,7 +336,6 @@ int main()
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 400.0f);
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
-        // --- INTERAKCJA ---
         glm::vec3 rayDir = getRayFromMouse(SCR_WIDTH / 2.0, SCR_HEIGHT / 2.0, SCR_WIDTH, SCR_HEIGHT, view, projection);
         glm::vec3 hitPoint;
         bool hit = getRayTerrainIntersection(cameraPos, rayDir, sandBox, hitPoint);
@@ -387,7 +351,6 @@ int main()
             if (isButtonPressed) {
                 bool raise = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
 
-                // RzeŸbimy dok³adnie w hitPoint
                 if (raise) {
                     glm::vec3 spawnPos = currentStickPos + glm::vec3(0.0f, 4.0f, 0.0f);
                     sandParticles.spawn(spawnPos, 2);
@@ -398,41 +361,35 @@ int main()
             }
         }
 
-        // --- RENDEROWANIE ---
         glm::vec3 sunPos;
         calculateSunPosition(glfwGetTime(), sunPos);
 
-        // 2. Obliczamy wektor œwiat³a (wa¿ne dla cieniowania piasku i wody)
         glm::vec3 lightDir = glm::normalize(glm::vec3(128.0f, 0.0f, 128.0f) - sunPos);
 
-        // 3. Obliczamy kolory Nieba (Gradient) i Œwiat³a
         float timeVal = glfwGetTime();
-        float sunHeight = sin(timeVal * 0.05f); // Wysokoœæ s³oñca (-1 do 1)
+        float sunHeight = sin(timeVal * 0.05f);
 
         glm::vec3 currentTop, currentBottom, currentLightColor;
 
-        if (sunHeight > 0.0f) { // DZIEÑ
+        if (sunHeight > 0.0f) {
             float t = glm::smoothstep(0.0f, 0.5f, sunHeight);
             currentTop = glm::mix(SUNSET_TOP, DAY_TOP, t);
-            currentBottom = glm::mix(SUNSET_BOTTOM, DAY_BOTTOM, t); // To bêdzie te¿ kolor mg³y!
+            currentBottom = glm::mix(SUNSET_BOTTOM, DAY_BOTTOM, t);
             currentLightColor = glm::mix(COLOR_SUNSET_LIGHT, COLOR_DAY_LIGHT, t);
         }
-        else { // NOC
+        else {
             float t = glm::smoothstep(0.0f, 0.4f, abs(sunHeight));
             currentTop = glm::mix(SUNSET_TOP, NIGHT_TOP, t);
             currentBottom = glm::mix(SUNSET_BOTTOM, NIGHT_BOTTOM, t);
             currentLightColor = glm::mix(COLOR_SUNSET_LIGHT, COLOR_NIGHT_LIGHT, t);
         }
 
-        // --- RENDEROWANIE ---
         sceneFBO.Bind();
         glEnable(GL_DEPTH_TEST);
 
-        // Czyœcimy ekran dolnym kolorem nieba (dla spójnoœci)
         glClearColor(currentBottom.r, currentBottom.g, currentBottom.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // A. RYSOWANIE NIEBA (SFERA)
         glDepthMask(GL_FALSE);
         glDepthFunc(GL_LEQUAL);
         glDisable(GL_CULL_FACE);
@@ -446,7 +403,7 @@ int main()
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        skySphere.draw(skyShader, glm::vec3(0.0f), view, projection); // Rysuj sferê nieba
+        skySphere.draw(skyShader, glm::vec3(0.0f), view, projection);
 
         glEnable(GL_CULL_FACE);
         glDepthFunc(GL_LESS);
@@ -455,9 +412,7 @@ int main()
         if (wireframeMode)
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-        // B. PIASEK
         sandShader.use();
-        // UWAGA: Jako mg³ê podajemy DOLNY kolor nieba, ¿eby horyzont siê zlewa³
         sandShader.setVec3("fogColor", currentBottom);
         sandShader.setVec3("lightColor", currentLightColor);
         sandShader.setMat4("projection", projection);
@@ -471,32 +426,19 @@ int main()
         sandShader.setMat4("model", glm::mat4(1.0f));
         sandBox.draw();
 
-        // C. PATYK
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
-
-            // 1. W³¹czamy Shader
             hobbyHorseShader.use();
-
-            // 2. Przesy³amy Uniformy (Œwiat³o, Kamera, Mg³a)
-            // U¿ywamy currentBottom jako mg³y, ¿eby pasowa³a do nieba
             hobbyHorseShader.setVec3("fogColor", currentBottom);
             hobbyHorseShader.setVec3("lightColor", currentLightColor);
             hobbyHorseShader.setMat4("projection", projection);
             hobbyHorseShader.setMat4("view", view);
             hobbyHorseShader.setVec3("dirLightDir", lightDir);
-            hobbyHorseShader.setVec3("viewPos", cameraPos); // Tego mog³o brakowaæ!
-
-            // 3. KLUCZOWA NAPRAWA TEKSTURY
-            // Mówimy shaderowi: "Zmienna texSlot1 ma braæ dane ze Slotu 0"
+            hobbyHorseShader.setVec3("viewPos", cameraPos);
             hobbyHorseShader.setInt("texSlot1", 0);
 
-            // Aktywujemy fizyczny Slot 0 na karcie graficznej
             glActiveTexture(GL_TEXTURE0);
-
-            // Wk³adamy tam obrazek konia
             glBindTexture(GL_TEXTURE_2D, stickTexture);
 
-            // 4. Rysowanie Modelu
             glm::mat4 model = glm::translate(glm::mat4(1.0f), currentStickPos);
             model = glm::rotate(model, glm::radians(-35.0f), glm::vec3(1.0f, 0.0f, 0.0f));
             model = glm::scale(model, glm::vec3(2.5f));
@@ -505,39 +447,33 @@ int main()
             stickModel.draw();
         }
 
-        // D. CZ¥STECZKI
         particleShader.use();
         particleShader.setMat4("projection", projection);
         particleShader.setMat4("view", view);
         particleShader.setVec3("lightColor", currentLightColor);
         sandParticles.draw(particleShader);
 
-        // E. WODA
         waterShader.use();
         waterShader.setMat4("projection", projection);
         waterShader.setMat4("view", view);
         waterShader.setFloat("time", glfwGetTime());
         waterShader.setVec3("viewPos", cameraPos);
 
-        // WA¯NE: Mg³a wody te¿ musi byæ koloru dolnego nieba
         waterShader.setVec3("fogColor", currentBottom);
         waterShader.setVec3("lightColor", currentLightColor);
-        waterShader.setVec3("dirLightDir", lightDir); // Przekazujemy naprawiony wektor œwiat³a
+        waterShader.setVec3("dirLightDir", lightDir);
 
         glm::mat4 modelWater = glm::mat4(1.0f);
         modelWater = glm::translate(modelWater, waterPos);
         waterShader.setMat4("model", modelWater);
         waterMesh.draw();
 
-        // F. S£OÑCE (Rysujemy na koñcu, ¿eby by³o na niebie)
-        // Pamiêtaj o ustawieniu jasnego koloru w Sun.h (50.0, 40.0, 10.0) dla Blooma!
         sunObject.draw(sunShader, sunPos, view, projection);
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         sceneFBO.Unbind();
 
-        // 2. EKSTRAKCJA JASNOŒCI (Wyci¹gamy s³oñce i odblaski)
         glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[0]);
         extractShader.use();
         glActiveTexture(GL_TEXTURE0);
@@ -545,17 +481,14 @@ int main()
         glBindVertexArray(quadVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        // 3. PING-PONG BLUR (Rozmywamy to co jasne)
         bool horizontal = true;
         unsigned int amount = 5;
         blurShader.use();
         for (unsigned int i = 0; i < amount; i++) {
-            // Zaczynamy od pingpongFBO[1], bo w [0] jest wynik ekstrakcji
             glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
             blurShader.setInt("horizontal", horizontal);
             glActiveTexture(GL_TEXTURE0);
 
-            // W 1. kroku bierzemy wynik ekstrakcji, w kolejnych poprzedni blur
             if (i == 0) glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[0]);
             else glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[!horizontal]);
 
@@ -565,7 +498,6 @@ int main()
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        // 4. FINALNE £¥CZENIE (Scena + Bloom)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         finalShader.use();
         glActiveTexture(GL_TEXTURE0);
